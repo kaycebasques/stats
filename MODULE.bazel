@@ -1,0 +1,39 @@
+module(
+    name = "stats",
+    version = "0.1.0",
+    bazel_compatibility = [">=9.0.0"],
+)
+
+bazel_dep(name = "rules_haskell", version = "0.1.0")
+git_override(
+    module_name = "rules_haskell",
+    remote = "https://github.com/kaycebasques/rules_haskell.git",
+    commit = "690806c9c730c3737cfe481066cd225c2944561c",
+)
+
+# Self-contained Linux C/C++ toolchain (zig cc)
+bazel_dep(name = "hermetic_cc_toolchain", version = "4.3.0")
+
+cc_toolchains = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains")
+use_repo(cc_toolchains, "zig_sdk")
+
+# Order matters: Bazel selects the first matching registered toolchain, and
+# `@zig_sdk//toolchain/...` expands alphabetically (picking `gnu.2.17` first).
+# Pinning `gnu.2.32` ahead of the wildcard fallbacks satisfies both:
+#   1. GHC's `deb10` boot libraries (require glibc >= 2.28 for `memfd_create`, `statx`, `fcntl64`).
+#   2. BCR `gmp` / GNU `m4` under Zig (require `<sys/single_threaded.h>`, added in glibc 2.32).
+# Meanwhile, capping the ABI at glibc 2.32 keeps binaries portable across
+# Debian 12 (2.36), Ubuntu 22.04/24.04 (2.35/2.39), and Rocky 9 (2.34).
+register_toolchains(
+    "@zig_sdk//toolchain:linux_amd64_gnu.2.32",
+    "@zig_sdk//toolchain:linux_arm64_gnu.2.32",
+    "@zig_sdk//toolchain/...",
+    "@zig_sdk//libc_aware/toolchain/...",
+)
+
+# GHC toolchain + automatic @hs_boot targets for GHC boot packages
+hs = use_extension("@rules_haskell//haskell:extensions.bzl", "hs")
+hs.toolchain(ghc_version = "9.10.3")
+use_repo(hs, "hs_boot", "hs_toolchains")
+
+register_toolchains("@hs_toolchains//:all")

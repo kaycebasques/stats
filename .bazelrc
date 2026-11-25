@@ -1,0 +1,27 @@
+# Automatically activate OS-specific config sections (e.g. `build:linux` below)
+# matching the host platform without requiring `--config=linux` on every command.
+common --enable_platform_specific_config
+
+# Materialize `<binary>.runfiles/` symlink trees so executables and tests can
+# locate runtime `data` files reliably.
+common --enable_runfiles
+
+# Strip host shell environment variables (`$PATH`, `$HOME`, `$LD_LIBRARY_PATH`,
+# etc.) from build actions so ambient host tools cannot leak in and cache keys
+# stay reproducible across machines.
+common --incompatible_strict_action_env
+
+# Print stdout/stderr directly to the terminal when a `bazel test` target fails.
+common --test_output=errors
+
+# Store `zig cc`'s lazily compiled glibc startup stubs in a shared host cache
+# directory so they are not rebuilt from scratch on every C/C++ compile action.
+build:linux --repo_env=HERMETIC_CC_TOOLCHAIN_CACHE_PREFIX=/tmp/zig-cc-cache
+
+# Bind-mount `/tmp` into Linux sandboxes so sandboxed actions can read and write
+# the shared Zig compiler cache above without exposing host compilers or headers.
+build:linux --sandbox_add_mount_pair=/tmp
+
+# Allow optional machine-local Bazel flag overrides (gitignored) without
+# modifying the shared repository configuration.
+try-import %workspace%/.bazelrc.user

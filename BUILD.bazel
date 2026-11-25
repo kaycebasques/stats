@@ -1,0 +1,14 @@
+load("@rules_haskell//haskell:defs.bzl", "hs_binary")
+
+hs_binary(
+    name = "hello",
+    srcs = ["src/Main.hs"],
+    ghc_opts = [
+        "-Wall",
+        "-Wcompat",
+    ],
+    hs_source_dirs = ["src"],
+    deps = [
+        "@hs_boot//:base",
+    ],
+)
